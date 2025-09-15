@@ -8,15 +8,15 @@ from rapidfuzz import process, fuzz
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
+
+# =========================
+# Load environment variables
+# =========================
 load_dotenv()
 
 # =========================
 # Config
 # =========================
-'''
-Insert your API Keys at, 
-line 28 and line 215
-'''
 STOCK_LIST_FILE = "EQUITY_L.csv"
 TRANSCRIPT_TXT = "Transcript_output.txt"
 TRANSLATED_TXT = "Transcript_translated.txt"
@@ -25,7 +25,7 @@ OUTPUT_CSV = "Analysis.csv"
 # =========================
 # Translator
 # =========================
-client = genai.Client(api_key= os.getenv('GEMINI_API_KEY'))   #------> GEMINI_API_KEY = YOUR API KEY OF GOOGLE GEMINI
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 def chunk_text(text, max_words=2000):
     """Split text into word chunks for Gemini API."""
@@ -36,9 +36,10 @@ def chunk_text(text, max_words=2000):
 def translate_text(text: str) -> str:
     """Translate Hindi text to English using Gemini."""
     response = client.models.generate_content(
-    model="gemini-2.5-flash",
-    config=types.GenerateContentConfig(
-        system_instruction="You are a professional translation assistance which translate hindi transcription into English. The transcription contain hindi news and Stock information."),
+        model="gemini-2.5-flash",
+        config=types.GenerateContentConfig(
+            system_instruction="You are a professional translation assistant. Translate Hindi transcription into English. The transcription contains Hindi news and Stock information."
+        ),
         contents=text
     )
     return response.text.strip()
@@ -87,40 +88,29 @@ def load_company_list(csv_path: str) -> Tuple[pd.DataFrame, set, set]:
 
     if name_col:
         names = set(
-            df[name_col]
-            .dropna()
-            .astype(str)
-            .str.strip()
-            .str.upper()
-            .tolist()
+            df[name_col].dropna().astype(str).str.strip().str.upper().tolist()
         )
 
     if symbol_col:
         symbols = set(
-            df[symbol_col]
-            .dropna()
-            .astype(str)
-            .str.strip()
-            .str.upper()
-            .tolist()
+            df[symbol_col].dropna().astype(str).str.strip().str.upper().tolist()
         )
-    return df, names, symbols
 
+    return df, names, symbols
 
 def split_sentences(text: str) -> List[str]:
     """Split English sentences."""
-    text = re.sub(r'\s+', ' ', text)
-    parts = re.split(r'[.?!]+', text)
+    text = re.sub(r"\s+", " ", text)
+    parts = re.split(r"[.?!]+", text)
     return [p.strip() for p in parts if p.strip()]
-
 
 BUY_WORDS = ["buy", "accumulate", "go long", "purchase"]
 SELL_WORDS = ["sell", "exit", "book profit", "go short"]
 STOPLOSS_WORDS = ["stop loss", "sl"]
 
-NUM = r'[0-9][\d,]*\.?\d*'
-PRICE_PAT = re.compile(rf'(?:₹|rs\.?|rupees?)\s*({NUM})', flags=re.IGNORECASE)
-STANDALONE_NUM = re.compile(rf'\b({NUM})\b')
+NUM = r"[0-9][\d,]*\.?\d*"
+PRICE_PAT = re.compile(rf"(?:₹|rs\.?|rupees?)\s*({NUM})", flags=re.IGNORECASE)
+STANDALONE_NUM = re.compile(rf"\b({NUM})\b")
 
 def find_action(sentence: str) -> str:
     s = sentence.lower()
@@ -173,7 +163,7 @@ def pick_company_match(sentence: str, names_upper: set, symbols_upper: set) -> s
 
     # Symbol match
     for sym in symbols_upper:
-        if sym and re.search(rf'\b{re.escape(sym)}\b', sentence_upper):
+        if sym and re.search(rf"\b{re.escape(sym)}\b", sentence_upper):
             return sym
 
     return ""
@@ -212,7 +202,10 @@ def main():
         return
 
     # Transcribe
-    aai.settings.api_key = os.getenv('ASSEMBLY_API_KEY') #-------> ASSEMBLY_API_KEY = YOUR ASSEMBLY AI API KEY
+    aai.settings.api_key = os.getenv("ASSEMBLYAI_API_KEY")
+    if not aai.settings.api_key:
+        raise ValueError("ASSEMBLYAI_API_KEY not set in .env file")
+
     config = aai.TranscriptionConfig(
         speech_model=aai.SpeechModel.best,
         language_detection=True
